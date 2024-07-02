@@ -8,6 +8,12 @@ const connectDB = function () {
 
   mongoose
     .connect(db)
-    .then(() => console.log("Database connect successfully 🛜"));
+    .then(() =>
+      console.log(
+        `Database connect successfully 🛜 ${
+          process.env.NODE_ENV === "development" ? " Local" : " Real"
+        }`
+      )
+    );
 };
 module.exports = connectDB;
