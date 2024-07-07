@@ -1,4 +1,5 @@
-const AppError = require("./../utils/appError");
+/* eslint-disable prettier/prettier */
+const AppError = require('../utils/appError');
 
 function sendErrorDev(err, res) {
   res.status(err.statusCode).json({
@@ -11,12 +12,12 @@ function sendErrorDev(err, res) {
 
 function handleValidationError(error) {
   const errors = Object.values(error.errors).map((val) => val.message);
-  const message = `Invalid input data, ${errors.join(". ")}`;
+  const message = `Invalid input data, ${errors.join('. ')}`;
   return new AppError(message, 400);
 }
 
 function handleJWTError(error) {
-  const message = error.message;
+  const { message } = error;
   return new AppError(message, 401);
 }
 
@@ -24,8 +25,8 @@ function handleJWTError(error) {
 //   return new AppError("Something Went Wrong Verifying OTP, Please retry", 404);
 // }
 
-function handleTokenExpireError(error) {
-  return new AppError("Your token has expired please try login again", 500);
+function handleTokenExpireError() {
+  return new AppError('Your token has expired please try login again', 500);
 }
 
 function sendErrorProd(err, res) {
@@ -36,26 +37,26 @@ function sendErrorProd(err, res) {
     });
   } else {
     res.status(500).json({
-      status: "error",
-      message: "Some Error has Occured 😔",
+      status: 'error',
+      message: 'Some Error has Occured 😔',
     });
   }
 }
 
 module.exports = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
-  err.status = err.status || "error";
-  if (process.env.NODE_ENV === "development") {
+  err.status = err.status || 'error';
+  if (process.env.NODE_ENV === 'development') {
     sendErrorDev(err, res);
-  } else if (process.env.NODE_ENV === "production") {
+  } else if (process.env.NODE_ENV === 'production') {
     // let error = { ...err };
 
-    if (err.name === "ValidationError")
+    if (err.name === 'ValidationError')
       sendErrorProd(handleValidationError(err), res);
-    if (err.name === "JsonWebTokenError")
+    if (err.name === 'JsonWebTokenError')
       sendErrorProd(handleJWTError(err), res);
     // if (err.code === 20404) sendErrorProd(handleTwilioError(err), res);
-    if (err.name === "TokenExpiredError")
+    if (err.name === 'TokenExpiredError')
       sendErrorProd(handleTokenExpireError(err), res);
     sendErrorProd(err, res);
   }

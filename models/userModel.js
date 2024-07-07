@@ -47,9 +47,35 @@ const userSchema = new mongoose.Schema(
       },
       default: "user",
     },
+    projectsCreated: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: "Project",
+      },
+    ],
+    projectIdAssigned: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: "Project",
+      },
+    ],
+    numberOfProjectsAllowed: {
+      type: Number,
+      default: 2,
+    },
+
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetExpiresAt: Date,
+    active: {
+      type: Boolean,
+    },
+    subscription: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: "Subscription",
+      },
+    ],
   },
   {
     toJSON: {
