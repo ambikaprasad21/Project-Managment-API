@@ -15,6 +15,7 @@ const catchAsync = require('./../utils/catchAsync');
 const Project = require('./../models/projectModel');
 const AppError = require('./../utils/appError');
 const Attachment = require('../models/attachmentModel');
+const Notification = require('../models/notificationModel');
 
 const multerStorage = multer.memoryStorage();
 
@@ -52,11 +53,11 @@ exports.uploadProjectMedia = upload.fields([
 exports.createProject = catchAsync(async (req, res, next) => {
   //   console.log(req.body);
   const user = await User.findById(req.user._id);
-  // if (user.projectsCreated.length >= user.numberOfProjectsAllowed) {
-  //   return next(
-  //     new AppError('To create more projects you need an upgrade', 400),
-  //   );
-  // }
+  if (user.projectsCreated.length >= user.numberOfProjectsAllowed) {
+    return next(
+      new AppError('To create more projects you need an upgrade', 400),
+    );
+  }
   const { title, description } = req.body;
   const newProject = await Project.create({
     title: title,
@@ -64,6 +65,7 @@ exports.createProject = catchAsync(async (req, res, next) => {
     manager: req.user._id,
   });
   user.projectsCreated.push(newProject._id);
+  // console.log(user.projectsCreated);
   await user.save({ validateBeforeSave: false });
   req.body.id = newProject._id;
   next();
@@ -132,6 +134,12 @@ exports.getProject = catchAsync(async (req, res, next) => {
 
   const project = await Project.findById(projectId);
 
+  if (!project) {
+    return next(
+      new AppError('There is no project with the given information', 400),
+    );
+  }
+
   res.status(200).json({
     status: 'success',
     data: project,
@@ -151,6 +159,7 @@ exports.getProjectToTrashToDelete = catchAsync(async (req, res, next) => {
   }
 
   req.body.project = project;
+  // console.log(project.members[0].user._id);
   next();
 });
 
@@ -176,8 +185,24 @@ exports.outTrash = catchAsync(async (req, res, next) => {
 
 exports.deleteProject = catchAsync(async (req, res, next) => {
   const project = req.body.project;
-  console.log(project);
+
   await Attachment.findByIdAndDelete(project.attachments);
+
+  await Promise.all(
+    project.members.map(async (member) => {
+      const user = await User.findById(member.user._id);
+      user.projectIdAssigned = user.projectIdAssigned.filter(
+        (el) => !el.equals(project._id),
+      );
+      const notify = await Notification.create({
+        message: `This ${project.title} ❌ was deleted by Manager`,
+        user: user._id,
+      });
+      // user.notifications.push(notify._id);
+      await user.save({ validateBeforeSave: false });
+    }),
+  );
+
   await Project.findByIdAndDelete(project._id);
   req.user.projectsCreated = req.user.projectsCreated.filter(
     (el) => !el.equals(project._id),

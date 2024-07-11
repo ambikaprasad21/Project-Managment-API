@@ -1,6 +1,7 @@
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 const Comment = require('./../models/commentModel');
+const Task = require('./../models/taskModel');
 
 exports.comment = catchAsync(async (req, res, next) => {
   const { taskId } = req.params;
@@ -12,6 +13,34 @@ exports.comment = catchAsync(async (req, res, next) => {
     email: req.user.email,
     photo: req.user.photo,
   };
+
+  const task = await Task.findById(taskId);
+  let flag = false;
+
+  // req.user.projectsCreated.forEach((el) => {
+  //   if (el.equals(task.projectId)) {
+  //     flag = true;
+  //   }
+  // });
+
+  flag =
+    req.user.projectsCreated.some((el) => el.equals(task.projectId)) ||
+    task.members.some((el) => el.user._id.equals(req.user._id));
+
+  // task.members.forEach((el) => {
+  //   if (el.user._id == req.user._id) {
+  //     flag = true;
+  //   }
+  // });
+
+  if (!flag) {
+    return next(
+      new AppError(
+        'Your are not a member of this task, you cannot comment',
+        401,
+      ),
+    );
+  }
 
   const comment = await Comment.create({
     text,

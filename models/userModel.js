@@ -47,12 +47,12 @@ const userSchema = new mongoose.Schema(
       },
       default: 'user',
     },
-    notifications: [
-      {
-        type: mongoose.Schema.ObjectId,
-        ref: 'Notification',
-      },
-    ],
+    // notifications: [
+    //   {
+    //     type: mongoose.Schema.ObjectId,
+    //     ref: 'Notification',
+    //   },
+    // ],
     projectsCreated: [
       {
         type: mongoose.Schema.ObjectId,

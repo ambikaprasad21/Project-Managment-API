@@ -43,6 +43,6 @@ router.post(
 // change password
 router.patch('/updatePassword', userController.changePassword);
 
-router.patch('/visibility');
+router.patch('/visibility', userController.visibility);
 
 module.exports = router;

@@ -10,6 +10,10 @@ const notificationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    user: {
+      type: mongoose.Types.ObjectId,
+      required: [true, 'A notification must have user Id'],
+    },
   },
   {
     timestamps: true,

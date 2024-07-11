@@ -28,8 +28,9 @@ exports.create = catchAsync(async (req, res, next) => {
   }
   const notify = await Notification.create({
     message: 'You were added to a new project 🏢',
+    user: user._id,
   });
-  user.notifications.push(notify._id);
+  // user.notifications.push(notify._id);
   await user.save({ validateBeforeSave: false });
 
   const member = await TaskMember.create({
@@ -45,4 +46,22 @@ exports.create = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.updateMember = catchAsync(async (req, res, next) => {});
+exports.updateMember = catchAsync(async (req, res, next) => {
+  const { memberId } = req.params;
+  // const user = await TaskMember.findById(memberId);
+  // const userId = user._id;
+  // user = await User.findById(userId);
+  const { role, title } = req.body;
+  const member = await TaskMember.findByIdAndUpdate(
+    memberId,
+    {
+      role,
+      title,
+    },
+    { returnDocument: 'after' },
+  );
+  res.status(200).json({
+    status: 'success',
+    data: member,
+  });
+});

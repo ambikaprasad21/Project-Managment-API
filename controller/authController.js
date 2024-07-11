@@ -96,9 +96,8 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError('User should have email & password', 400));
   }
 
-  const user = await User.findOne({ email })
-    .select('+password')
-    .populate('notifications');
+  const user = await User.findOne({ email }).select('+password');
+  // .populate('notifications');
   if (!user) return next(new AppError('Entered Email Id is invlaid', 401));
 
   if (!(await user.correctPassword(password, user.password))) {
@@ -260,5 +259,3 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   const token = await createLoginToken(user._id);
   sendLoginTokenToCookie(res, token);
 });
-
-
