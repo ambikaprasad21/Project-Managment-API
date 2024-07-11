@@ -4,7 +4,7 @@ const memberController = require('./../controller/memberController');
 
 const router = express.Router();
 
-router.use(authController.protect);
+// router.use(authController.protect);
 
 router.post('/:projectId/create', memberController.create);
 

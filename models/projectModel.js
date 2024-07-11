@@ -12,7 +12,6 @@ const projectSchema = new mongoose.Schema(
       required: [true, 'A project must have description'],
     },
     manager: mongoose.Types.ObjectId,
-
     attachments: {
       type: mongoose.Schema.ObjectId,
       ref: 'Attachment',
@@ -44,10 +43,10 @@ projectSchema.virtual('tasks', {
 });
 
 projectSchema.pre(/^find/, function (next) {
-  this.populate({ path: 'attachments', select: '' })
+  this.populate({ path: 'attachments', select: '-id' })
     .populate({
       path: 'members',
-      select: 'title role user -projectId',
+      select: '-id',
     })
     .populate('tasks');
   next();

@@ -29,7 +29,18 @@ const taskSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: 'Attachment',
     },
-    deadline: Date,
+    deadline: {
+      type: Date,
+      required: [true, 'A task must have a deadline'],
+    },
+    priorityLevel: {
+      type: String,
+      enum: {
+        values: ['High', 'Medium', 'Low'],
+        message: 'task status can be High, Medium, Low',
+      },
+      default: 'Low',
+    },
   },
   {
     toJSON: {
@@ -40,6 +51,12 @@ const taskSchema = new mongoose.Schema(
     },
   },
 );
+
+// taskSchema.virtual('comments', {
+//   ref: 'Comment',
+//   foreignField: 'task',
+//   localField: '_id',
+// });
 
 taskSchema.pre(/^find/, function (next) {
   this.populate('attachments').populate('members');

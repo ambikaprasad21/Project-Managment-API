@@ -50,7 +50,6 @@ module.exports = (err, req, res, next) => {
     sendErrorDev(err, res);
   } else if (process.env.NODE_ENV === 'production') {
     // let error = { ...err };
-
     if (err.name === 'ValidationError')
       sendErrorProd(handleValidationError(err), res);
     if (err.name === 'JsonWebTokenError')

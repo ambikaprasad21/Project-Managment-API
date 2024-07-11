@@ -60,7 +60,7 @@ exports.sendOtpToUser = catchAsync(async (req, res, next) => {
 
 exports.verifyOTPAndRegister = catchAsync(async (req, res, next) => {
   // const otp = req.query.otp;
-  const { code } = req.query.code;
+  const code = req.query.code;
 
   const { firstName, lastName, email, password, confirmPassword, role } =
     req.body;
@@ -96,7 +96,9 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError('User should have email & password', 400));
   }
 
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email })
+    .select('+password')
+    .populate('notifications');
   if (!user) return next(new AppError('Entered Email Id is invlaid', 401));
 
   if (!(await user.correctPassword(password, user.password))) {
@@ -104,7 +106,7 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   const token = await createLoginToken(user._id);
-  sendLoginTokenToCookie(res, token);
+  sendLoginTokenToCookie(res, token, user);
 });
 
 exports.protect = catchAsync(async (req, res, next) => {
@@ -259,17 +261,4 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   sendLoginTokenToCookie(res, token);
 });
 
-exports.changePassword = catchAsync(async (req, res, next) => {
-  const { currentPassword, newPassword, confirmPassword } = req.body;
 
-  const user = await User.findById(req.user._id).select('+password');
-  if (!(await user.correctPassword(currentPassword, user.password))) {
-    return next(new AppError('Your current password is wrong', 401));
-  }
-
-  user.password = newPassword;
-  user.confirmPassword = confirmPassword;
-  await user.save();
-  const token = await createLoginToken(user._id);
-  sendLoginTokenToCookie(res, token);
-});

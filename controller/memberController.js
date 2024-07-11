@@ -1,4 +1,5 @@
 const TaskMember = require('../models/taskMemberModel');
+const Notification = require('../models/notificationModel');
 const User = require('../models/userModel');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
@@ -12,9 +13,23 @@ exports.create = catchAsync(async (req, res, next) => {
     return next(new AppError('title, role and email is required', 400));
 
   const user = await User.findOne({ email: email });
+
+  if (!user) {
+    return next(
+      new AppError(
+        'There is no user with this email, you can mention only registered user email',
+        400,
+      ),
+    );
+  }
+
   if (!user.projectIdAssigned.includes(projectId)) {
     user.projectIdAssigned.push(projectId);
   }
+  const notify = await Notification.create({
+    message: 'You were added to a new project 🏢',
+  });
+  user.notifications.push(notify._id);
   await user.save({ validateBeforeSave: false });
 
   const member = await TaskMember.create({
@@ -29,3 +44,5 @@ exports.create = catchAsync(async (req, res, next) => {
     data: member,
   });
 });
+
+exports.updateMember = catchAsync(async (req, res, next) => {});

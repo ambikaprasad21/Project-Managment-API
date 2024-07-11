@@ -1,27 +1,26 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema(
   {
-    time: Date,
     message: {
       type: String,
-      required: [true, "notification must have message"],
+      required: [true, 'notification must have message'],
     },
-    user: {
-      type: mongoose.Schema.ObjectId,
-      ref: "User",
-      required: [true, "notification must have a user id"],
+    seen: {
+      type: Boolean,
+      default: false,
     },
   },
   {
+    timestamps: true,
     toJSON: {
       virtuals: true,
     },
     toObject: {
       virtuals: true,
     },
-  }
+  },
 );
 
-const Notification = mongoose.model("Notification", notificationSchema);
+const Notification = mongoose.model('Notification', notificationSchema);
 module.exports = Notification;

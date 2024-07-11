@@ -1,7 +1,7 @@
 const multer = require('multer');
 const sharp = require('sharp');
 const fs = require('fs');
-const mongoose = require('mongoose');
+// const mongoose = require('mongoose');
 const User = require('./../models/userModel');
 
 // const ffmpegStatic = require('ffmpeg-static');
@@ -49,9 +49,28 @@ exports.uploadProjectMedia = upload.fields([
   { name: 'pdfs', maxCount: 10 },
 ]);
 
+exports.createProject = catchAsync(async (req, res, next) => {
+  //   console.log(req.body);
+  const user = await User.findById(req.user._id);
+  // if (user.projectsCreated.length >= user.numberOfProjectsAllowed) {
+  //   return next(
+  //     new AppError('To create more projects you need an upgrade', 400),
+  //   );
+  // }
+  const { title, description } = req.body;
+  const newProject = await Project.create({
+    title: title,
+    description: description,
+    manager: req.user._id,
+  });
+  user.projectsCreated.push(newProject._id);
+  await user.save({ validateBeforeSave: false });
+  req.body.id = newProject._id;
+  next();
+});
+
 exports.transformProjectMedia = async (req, res, next) => {
   if (!req.files) return next();
-
   // project intro video
   if (req.files.video) {
     const filename = `project-video-${req.user._id}-${Date.now()}.mp4`;
@@ -117,26 +136,6 @@ exports.getProject = catchAsync(async (req, res, next) => {
     status: 'success',
     data: project,
   });
-});
-
-exports.createProject = catchAsync(async (req, res, next) => {
-  //   console.log(req.body);
-  const user = await User.findById(req.user._id);
-  // if (user.projectsCreated.length >= user.numberOfProjectsAllowed) {
-  //   return next(
-  //     new AppError('To create more projects you need an upgrade', 400),
-  //   );
-  // }
-  const { title, description } = req.body;
-  const newProject = await Project.create({
-    title: title,
-    description: description,
-    manager: req.user._id,
-  });
-  user.projectsCreated.push(newProject._id);
-  await user.save({ validateBeforeSave: false });
-  req.body.newProjectId = newProject._id;
-  next();
 });
 
 exports.getProjectToTrashToDelete = catchAsync(async (req, res, next) => {
