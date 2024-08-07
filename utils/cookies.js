@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
-exports.createOtpToken = async (otp) => {
-  const token = jwt.sign({ otp: otp }, process.env.JWT_SECRET, {
+exports.createOtpToken = async (otp, email) => {
+  const token = jwt.sign({ otp: otp, email }, process.env.JWT_SECRET, {
     expiresIn: '1m',
   });
 
@@ -12,13 +12,14 @@ exports.sendOtpTokenToCookie = (res, token, email) => {
   const expiresAt = new Date(new Date().getTime() + 60 * 1000);
   res.cookie('otptoken', token, {
     expires: expiresAt,
-    httpOnly: true,
+    sameSite: 'none',
+    secure: true,
   });
 
   res.status(200).json({
     status: 'success',
-    token: token,
-    message: `OTP send to ${email}`,
+    token,
+    email,
   });
 };
 
@@ -31,11 +32,11 @@ exports.createLoginToken = async (userId) => {
 };
 
 exports.sendLoginTokenToCookie = (res, token, user = {}) => {
-  const expiresAt = new Date(new Date().getTime() + 10 * 24 * 60 * 60 * 1000);
-  res.cookie('loginToken', token, {
-    expires: expiresAt,
-    httpOnly: true,
-  });
+  // const expiresAt = new Date(new Date().getTime() + 10 * 24 * 60 * 60 * 1000);
+  // res.cookie('loginToken', token, {
+  //   expires: expiresAt,
+  //   httpOnly: true,
+  // });
 
   res.status(200).json({
     status: 'success',

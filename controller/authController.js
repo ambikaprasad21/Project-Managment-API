@@ -19,9 +19,9 @@ const catchAsync = require('../utils/catchAsync');
 const sendMail = require('../utils/email');
 
 exports.sendOtpToUser = catchAsync(async (req, res, next) => {
-  const { email, password, confirmPassword } = req.body;
+  const { firstName, lastName, email, password, confirmPassword } = req.body;
 
-  if (!email || !password || !confirmPassword) {
+  if (!firstName || !lastName || !email || !password || !confirmPassword) {
     return next(new AppError('Please enter all the fields', 400));
   }
 
@@ -49,40 +49,37 @@ exports.sendOtpToUser = catchAsync(async (req, res, next) => {
 
   const result = await sendOtpCode(email, otp);
   if (result.status === 'pending') {
-    await Otp.create({ email, otp });
+    await Otp.create({ firstName, lastName, email, password, otp });
     setTimeout(async () => {
       await Otp.findOneAndDelete({ email });
     }, 60000);
-    const token = await createOtpToken(otp);
+    const token = await createOtpToken(otp, email);
     sendOtpTokenToCookie(res, token, email);
   }
 });
 
 exports.verifyOTPAndRegister = catchAsync(async (req, res, next) => {
   // const otp = req.query.otp;
-  const code = req.query.code;
+  const { code, user, verify } = req.query;
 
-  const { firstName, lastName, email, password, confirmPassword, role } =
-    req.body;
+  const decoded = jwt.verify(verify, process.env.JWT_SECRET);
+  if (user !== decoded.email) {
+    return next(new AppError('user and verify did not match', 400));
+  }
+
+  // const { firstName, lastName, email, password } =
+  //   req.body;
 
   if (!code) {
     return next(new AppError('Verification code is required', 400));
   }
 
-  const result = await verifyOtpCode(email, code);
-  if (result.status === 'approved') {
+  console.log(user, code);
+  const { status, password } = await verifyOtpCode(user, code);
+  if (status === 'approved') {
     //  register new user
-    await User.create({
-      firstName,
-      lastName,
-      email,
-      password,
-      confirmPassword,
-      role,
-    });
-
     // (await currentUser).save();
-    req.body = { email, password };
+    req.body = { email: user, password };
     next();
   } else {
     return next(new AppError('Invalid OTP', 400));
@@ -177,16 +174,14 @@ exports.logout = (req, res, next) => {
 };
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
-  const { email } = req.body.email;
+  const { email } = req.body;
   if (!validator.isEmail(email)) {
-    return next(new AppError(`${email} Id is not valid`, 400));
+    return next(new AppError(`${email} is not valid Email Id`, 400));
   }
   const user = await User.findOne({ email: email });
 
   if (!user) {
-    return next(
-      new AppError(`Email ${req.body.email} Id is not registered`, 404),
-    );
+    return next(new AppError(`Email ${req.body.email} is not registered`, 404));
   }
 
   if (user.passwordResetExpiresAt > Date.now()) {
@@ -204,9 +199,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   const resetToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
-  const resetUrl = `${req.protocol}://${req.get(
-    'host',
-  )}/pm/api/v1/user/resetpassword/${resetToken}`;
+  const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password/${resetToken}`;
   const message = `This is your password reset linke ${resetUrl}, valid for 5 minutes`;
 
   const options = {
@@ -219,7 +212,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     await sendMail(options);
     res.status(200).json({
       status: 'success',
-      message: `Token send to ${user.email}`,
+      message: `Password reset link send to ${user.email}`,
     });
   } catch (err) {
     user.passwordResetToken = undefined;
