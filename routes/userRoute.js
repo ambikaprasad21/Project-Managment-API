@@ -31,6 +31,7 @@ router.post('/forgetpassword', authController.forgotPassword);
 router.post('/resetpassword/:token', authController.resetPassword);
 
 router.use(authController.protect);
+router.post('/purchase', userController.purchase);
 
 //upload user image
 router.post(

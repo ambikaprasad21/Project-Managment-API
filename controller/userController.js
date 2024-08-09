@@ -6,6 +6,7 @@ const cloudinary = require('./../config/cloudinary');
 const User = require('./../models/userModel');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const stripe = require('stripe')(process.env.STRIPE);
 
 const multerStorage = multer.memoryStorage();
 
@@ -106,5 +107,37 @@ exports.visibility = catchAsync(async (req, res, next) => {
   await user.save();
   res.status(200).json({
     status: 'success',
+  });
+});
+
+exports.purchase = catchAsync(async (req, res, next) => {
+  const { type, logo } = req.body;
+  console.log(logo);
+
+  const unitAmount = type === 'advanced' ? 3500 : 2000; // Amount in cents
+  const lineItems = [
+    {
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: type === 'advanced' ? 'Advanced Plan' : 'Basic Plan',
+        },
+        unit_amount: unitAmount,
+      },
+      quantity: 1,
+    },
+  ];
+
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ['card'],
+    line_items: lineItems,
+    mode: 'payment',
+    success_url: process.env.FRONTEND_URL,
+    cancel_url: process.env.FRONTEND_URL,
+    customer_email: req.user.email,
+  });
+
+  res.status(200).json({
+    id: session.id,
   });
 });

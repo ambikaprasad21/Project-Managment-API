@@ -74,7 +74,7 @@ exports.verifyOTPAndRegister = catchAsync(async (req, res, next) => {
     return next(new AppError('Verification code is required', 400));
   }
 
-  console.log(user, code);
+  // console.log(user, code);
   const { status, password } = await verifyOtpCode(user, code);
   if (status === 'approved') {
     //  register new user
@@ -200,13 +200,37 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password/${resetToken}`;
-  const message = `This is your password reset linke ${resetUrl}, valid for 5 minutes`;
 
   const options = {
     email: user.email,
-    subject: 'Password reset token 🔑',
-    message: message,
+    subject: '🔑 password reset token for prozCollab account',
   };
+
+  if (process.env.NODE_ENV === 'production') {
+    options.html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f4f4; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <a href="${process.env.FRONTEND_URL}" target="_blank">
+            <img src="https://i.ibb.co/0Y4tmBS/logo.png" alt="ProzCollab Logo" style="max-width: 150px;">
+        </a>
+    </div>
+    <h1 style="font-size: 24px; font-weight: bold; color: #333; text-align: center; margin-bottom: 20px;">Reset Your ProzCollab Password</h1>
+    <div style="background-color: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+        <p style="font-size: 16px; color: #555; text-align: center; margin-bottom: 20px;">Hi ${user?.firstName} ${user?.lastName},</p>
+        <p style="font-size: 16px; color: #555; text-align: center; margin-bottom: 20px;">We received a request to reset your password. Click the button below to reset it:</p>
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="${resetUrl}" style="background-color: #6F93F1; color: #ffffff; text-decoration: none; padding: 15px 25px; border-radius: 5px; font-size: 16px;">Reset Password</a>
+        </div>
+        <p style="font-size: 14px; color: #777; text-align: center; margin-top: 20px;">If you did not request a password reset, please ignore this email or contact support if you have questions.</p>
+    </div>
+    <div style="margin-top: 30px; text-align: center;">
+        <p style="font-size: 16px; color: #333;">Best regards,<br>The ProzCollab Team</p>
+    </div>
+</div>
+    `;
+  } else if (process.env.NODE_ENV === 'development') {
+    options.message = `This is your password reset linke ${resetUrl}, valid for 5 minutes`;
+  }
 
   try {
     await sendMail(options);
