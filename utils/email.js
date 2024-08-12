@@ -22,7 +22,7 @@ const sendMail = async (options) => {
   });
 
   const mail = {
-    from: 'prozCollab <prozcollab.team@gmail.com',
+    from: 'ProzCollab <prozcollab.team@gmail.com',
     to: options.email,
     subject: options.subject,
   };

@@ -24,10 +24,7 @@ exports.sendOtpTokenToCookie = (res, token, email) => {
 };
 
 exports.createLoginToken = async (userId) => {
-  const token = jwt.sign({ userId: userId }, process.env.JWT_SECRET, {
-    expiresIn: '10d',
-  });
-
+  const token = jwt.sign({ userId: userId }, process.env.JWT_SECRET);
   return token;
 };
 

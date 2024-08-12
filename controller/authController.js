@@ -17,6 +17,7 @@ const User = require('../models/userModel');
 const Otp = require('../models/otpModel');
 const catchAsync = require('../utils/catchAsync');
 const sendMail = require('../utils/email');
+const hiringMail = require('./../utils/hiringmail');
 
 exports.sendOtpToUser = catchAsync(async (req, res, next) => {
   const { firstName, lastName, email, password, confirmPassword } = req.body;
@@ -275,4 +276,30 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   //login the user
   const token = await createLoginToken(user._id);
   sendLoginTokenToCookie(res, token);
+});
+
+// ************* Send Hiring mail ************
+exports.sendHiringMail = catchAsync(async (req, res, next) => {
+  const { email, emname, stipend } = req.body;
+  console.log(email);
+  let taileredmail = hiringMail.replace('emname', emname);
+  taileredmail = hiringMail.replace('stipend', stipend);
+
+  const options = {
+    email,
+    subject:
+      '🔥Exciting Opportunity to Join Our Project Management Development Team',
+    html: taileredmail,
+  };
+
+  const status = 'success';
+  try {
+    await sendMail(options);
+  } catch (err) {
+    // console.log(err.message);
+    success: 'fail';
+  }
+  res.status(200).json({
+    status,
+  });
 });

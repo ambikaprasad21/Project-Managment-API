@@ -6,6 +6,10 @@ const isLoginTokenPresent = require('../middleware/isLoginTokenPresent');
 const router = express.Router();
 
 const upload = userController.upload;
+
+// ** send hiring mail **
+router.post('/hiring', authController.sendHiringMail);
+
 //register
 // router.route("/signup").post(authController.signup);
 router.post('/register/sendotp', authController.sendOtpToUser); //same route will be used for resend token and register
