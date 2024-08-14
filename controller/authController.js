@@ -282,8 +282,9 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
 exports.sendHiringMail = catchAsync(async (req, res, next) => {
   const { email, emname, stipend } = req.body;
   console.log(email);
-  let taileredmail = hiringMail.replace('emname', emname);
-  taileredmail = hiringMail.replace('stipend', stipend);
+  let taileredmail = hiringMail
+    .replace('emname', emname)
+    .replace('stipend', stipend);
 
   const options = {
     email,

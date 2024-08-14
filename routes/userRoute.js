@@ -10,6 +10,8 @@ const upload = userController.upload;
 // ** send hiring mail **
 router.post('/hiring', authController.sendHiringMail);
 
+router.get('/monitor', userController.monitor);
+
 //register
 // router.route("/signup").post(authController.signup);
 router.post('/register/sendotp', authController.sendOtpToUser); //same route will be used for resend token and register

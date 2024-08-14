@@ -141,3 +141,11 @@ exports.purchase = catchAsync(async (req, res, next) => {
     id: session.id,
   });
 });
+
+exports.monitor = catchAsync(async (req, res, next) => {
+  const data = await User.find({ email: 'prozcollab.team@gmail.com' });
+  res.status(200).json({
+    status: 'success',
+    data: data,
+  });
+});
