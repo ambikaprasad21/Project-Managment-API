@@ -51,5 +51,7 @@ router.post(
 router.patch('/updatePassword', userController.changePassword);
 
 router.patch('/visibility', userController.visibility);
+router.patch('/edit-bio', userController.bio);
+router.patch('/edit-skills', userController.skills);
 
 module.exports = router;

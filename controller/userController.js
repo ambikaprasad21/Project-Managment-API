@@ -6,6 +6,10 @@ const cloudinary = require('./../config/cloudinary');
 const User = require('./../models/userModel');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const {
+  createLoginToken,
+  sendLoginTokenToCookie,
+} = require('../utils/cookies');
 const stripe = require('stripe')(process.env.STRIPE);
 
 const multerStorage = multer.memoryStorage();
@@ -14,16 +18,12 @@ const multerFilter = (req, file, cb) => {
   if (
     file.mimetype == 'image/png' ||
     file.mimetype == 'image/jpg' ||
-    file.mimetype == 'image/jpeg' ||
-    file.mimetype == 'video/mp4' ||
-    file.mimetype == 'application/pdf'
+    file.mimetype == 'image/jpeg'
   ) {
     cb(null, true);
   } else {
     cb(null, false);
-    return cb(
-      new AppError('Only .png, .jpg, .jpeg .mp4 and .pdf format allowed!'),
-    );
+    return cb(new AppError('Only .png, .jpg, .jpeg format allowed!'));
   }
 };
 
@@ -33,14 +33,19 @@ exports.upload = multer({
 });
 
 exports.resizeUserPic = async (req, res, next) => {
-  if (!req.file) return next();
-  req.file.filename = `user-${req.user._id}-${Date.now()}.jpeg`;
-  await sharp(req.file.buffer)
-    .resize(500, 500)
-    .toFormat('jpeg')
-    .jpeg({ quality: 90 })
-    .toFile(`public/uploads/images/${req.file.filename}`);
-  next();
+  try {
+    if (!req.file) return next();
+    req.file.filename = `user-${req.user._id}-${Date.now()}.jpeg`;
+    await sharp(req.file.buffer)
+      .resize(500, 500)
+      .toFormat('jpeg')
+      .jpeg({ quality: 90 })
+      .toFile(`public/uploads/images/${req.file.filename}`);
+    next();
+  } catch (err) {
+    console.log(err.message);
+    next();
+  }
 };
 
 exports.uploadPic = catchAsync(async (req, res) => {
@@ -52,7 +57,6 @@ exports.uploadPic = catchAsync(async (req, res) => {
       format: 'jpeg',
     },
   );
-
   if (!userpic) {
     return next(new AppError('Error uploading profile pic', 400));
   }
@@ -75,9 +79,28 @@ exports.uploadPic = catchAsync(async (req, res) => {
   res.status(200).json({
     status: 'success',
     data: {
-      cloudianryPaht: userpic.secure_url,
+      cloudianryPath: userpic.secure_url,
       filename: req.file.filename,
     },
+  });
+});
+
+exports.bio = catchAsync(async (req, res, next) => {
+  const bio = req.body.bio;
+  await User.findByIdAndUpdate(req.user._id, { bio: bio });
+  res.status(200).json({
+    statsu: 'success',
+  });
+});
+
+exports.skills = catchAsync(async (req, res, next) => {
+  const skill = req.body.skill;
+  const user = await User.findById(req.user._id);
+
+  const updatedSkills = [...user.skills, skill];
+  await User.findByIdAndUpdate(req.user._id, { skills: updatedSkills });
+  res.status(200).json({
+    statsu: 'success',
   });
 });
 
@@ -98,13 +121,14 @@ exports.changePassword = catchAsync(async (req, res, next) => {
 
 exports.visibility = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user._id);
+  console.log(user);
 
   if (!user) {
     return next(new AppError('There is no user with this credential', 400));
   }
 
-  user.profile = !profile;
-  await user.save();
+  user.profile = !user.profile;
+  await user.save({ validateBeforeSave: false });
   res.status(200).json({
     status: 'success',
   });

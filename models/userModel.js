@@ -86,6 +86,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    bio: {
+      type: String,
+    },
+    skills: [],
   },
   {
     toJSON: {
