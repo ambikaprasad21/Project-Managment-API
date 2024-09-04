@@ -3,52 +3,72 @@ const catchAsync = require('../utils/catchAsync');
 const Comment = require('./../models/commentModel');
 const Task = require('./../models/taskModel');
 
-exports.comment = catchAsync(async (req, res, next) => {
-  const { taskId } = req.params;
-  const { text, kind } = req.body;
+async function canComment(taskId, email, userId) {
+  const task = await Task.findById(taskId);
 
-  const author = {
-    firstName: req.user.firstName,
-    lastName: req.user.lastName,
-    email: req.user.email,
-    photo: req.user.photo,
+  if (!task) {
+    throw new AppError('Task not found.', 404);
+  }
+
+  const result = {
+    author: null,
+    manager: null,
   };
 
-  const task = await Task.findById(taskId);
-  let flag = false;
+  const memberByEmail = task.taskMembers.find(
+    (member) => member.member.user.email === email,
+  );
+  if (memberByEmail) {
+    result.author = {
+      id: memberByEmail.member._id,
+    };
+  }
 
-  // req.user.projectsCreated.forEach((el) => {
-  //   if (el.equals(task.projectId)) {
-  //     flag = true;
-  //   }
-  // });
+  const memberByManager = task.taskMembers.find(
+    (member) => String(member.member.managerId) === String(userId),
+  );
+  if (memberByManager) {
+    result.manager = {
+      id: memberByManager.member.managerId,
+    };
+  }
+  if (result.author === null && result.manager === null) {
+    return null;
+  }
 
-  flag =
-    req.user.projectsCreated.some((el) => el.equals(task.projectId)) ||
-    task.members.some((el) => el.user._id.equals(req.user._id));
+  return result;
+}
 
-  // task.members.forEach((el) => {
-  //   if (el.user._id == req.user._id) {
-  //     flag = true;
-  //   }
-  // });
-
-  if (!flag) {
+exports.comment = catchAsync(async (req, res, next) => {
+  const { taskId } = req.params;
+  const { text, email } = req.body;
+  const userId = req.user._id;
+  const result = await canComment(taskId, email, userId);
+  if (result === null) {
     return next(
       new AppError(
-        'Your are not a member of this task, you cannot comment',
-        401,
+        'You are not member in this task, so you cannot make comments.',
+        400,
       ),
     );
   }
 
-  const comment = await Comment.create({
-    text,
-    kind,
-    task: taskId,
-    author,
-  });
-
+  const author = result.author?.id;
+  const manager = result.manager?.id;
+  let comment;
+  if (author) {
+    comment = await Comment.create({
+      taskId,
+      text,
+      author,
+    });
+  } else {
+    comment = await Comment.create({
+      taskId,
+      text,
+      manager,
+    });
+  }
   res.status(200).json({
     status: 'success',
     data: comment,
@@ -57,7 +77,7 @@ exports.comment = catchAsync(async (req, res, next) => {
 
 exports.getComments = catchAsync(async (req, res, next) => {
   const { taskId } = req.params;
-  const comments = await Comment.find({ task: taskId });
+  const comments = await Comment.find({ taskId });
   res.status(200).json({
     status: 'success',
     data: comments,

@@ -1,9 +1,11 @@
 const multer = require('multer');
+const mongoose = require('mongoose');
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 const cloudinary = require('./../config/cloudinary');
 const User = require('./../models/userModel');
+const Project = require('./../models/projectModel');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const {
@@ -171,5 +173,105 @@ exports.monitor = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     data: data,
+  });
+});
+
+exports.getDashboardAnalytics = catchAsync(async (req, res, next) => {
+  const userId = req.user._id;
+  const user = await User.findById(userId);
+  const { projectsCreated } = user;
+
+  if (!projectsCreated || projectsCreated.length === 0) {
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        numberOfProjects: 0,
+        overallProjectProgress: 0,
+        numberOfTasks: 0,
+        overallTaskProgress: 0,
+        projectDeadlines: [],
+        taskDeadlines: [],
+      },
+    });
+  }
+
+  const projects = await Project.aggregate([
+    {
+      $match: {
+        _id: {
+          $in: projectsCreated.map((id) => new mongoose.Types.ObjectId(id)),
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: 'tasks',
+        localField: '_id',
+        foreignField: 'projectId',
+        as: 'tasks',
+      },
+    },
+    {
+      $project: {
+        title: 1,
+        deadline: 1,
+        tasks: 1,
+      },
+    },
+  ]);
+
+  let totalProjectProgress = 0;
+  let totalTaskProgress = 0;
+  let totalTasks = 0;
+  const projectDeadlines = [];
+  const taskDeadlines = [];
+
+  projects.forEach((project) => {
+    let projectTaskProgressSum = 0;
+    let projectTaskCount = project.tasks.length;
+
+    project.tasks.forEach((task) => {
+      const markedCount = task.taskMembers.filter(
+        (member) => member.marked === true,
+      ).length;
+      const taskProgress = markedCount / task.taskMembers.length;
+
+      projectTaskProgressSum += taskProgress;
+      totalTaskProgress += taskProgress;
+      totalTasks++;
+
+      taskDeadlines.push({
+        title: task.title,
+        deadline: task.deadline,
+      });
+    });
+
+    const projectProgress =
+      projectTaskCount > 0
+        ? (projectTaskProgressSum / projectTaskCount) * 100
+        : 0;
+    totalProjectProgress += projectProgress;
+
+    projectDeadlines.push({
+      title: project.title,
+      deadline: project.deadline,
+    });
+  });
+
+  const overallProjectProgress =
+    projects.length > 0 ? totalProjectProgress / projects.length : 0;
+  const overallTaskProgress =
+    totalTasks > 0 ? (totalTaskProgress / totalTasks) * 100 : 0;
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      numberOfProjects: projects.length,
+      overallProjectProgress: Math.round(overallProjectProgress * 100) / 100,
+      numberOfTasks: totalTasks,
+      overallTaskProgress: Math.round(overallTaskProgress * 100) / 100,
+      projectDeadlines,
+      taskDeadlines,
+    },
   });
 });

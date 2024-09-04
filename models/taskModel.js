@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const taskSchema = new mongoose.Schema(
   {
+    projectId: mongoose.Types.ObjectId,
     title: {
       type: String,
       require: [true, 'task must have a title'],
@@ -10,29 +11,22 @@ const taskSchema = new mongoose.Schema(
       type: String,
       required: [true, 'task must have description'],
     },
-    status: {
-      type: String,
-      enum: {
-        values: ['pending', 'in-progress', 'completed'],
-        message: 'task status can be pending, in-progress, completed',
-      },
-      default: 'pending',
-    },
-    members: [
-      {
-        type: mongoose.Schema.ObjectId,
-        ref: 'TaskMember',
-      },
-    ],
-    projectId: mongoose.Types.ObjectId,
-    attachments: {
-      type: mongoose.Schema.ObjectId,
-      ref: 'Attachment',
-    },
     deadline: {
       type: Date,
       required: [true, 'A task must have a deadline'],
     },
+    taskMembers: [
+      {
+        member: {
+          type: mongoose.Schema.ObjectId,
+          ref: 'Member',
+        },
+        marked: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
     priorityLevel: {
       type: String,
       enum: {
@@ -41,6 +35,8 @@ const taskSchema = new mongoose.Schema(
       },
       default: 'Low',
     },
+    pdfs: [],
+    images: [],
   },
   {
     toJSON: {
@@ -59,7 +55,7 @@ const taskSchema = new mongoose.Schema(
 // });
 
 taskSchema.pre(/^find/, function (next) {
-  this.populate('attachments').populate('members');
+  this.populate('taskMembers.member');
   next();
 });
 

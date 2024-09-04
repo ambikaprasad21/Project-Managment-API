@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const Project = require('./projectModel');
+const Notification = require('./notificationModel');
 
 const userSchema = new mongoose.Schema(
   {
@@ -101,6 +103,12 @@ const userSchema = new mongoose.Schema(
   },
 );
 
+// userSchema.virtual('members', {
+//   ref: 'Member',
+//   foreignField: 'managerId',
+//   localField: '_id',
+// });
+
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   //  hashing password
@@ -149,6 +157,11 @@ userSchema.methods.createPasswordResetToken = function () {
   this.passwordResetExpiresAt = Date.now() + 5 * 60 * 1000;
   return resetToken;
 };
+
+// userSchema.pre(/^find/, function (next) {
+//   this.populate('members');
+//   next();
+// });
 
 const userModel = mongoose.model('User', userSchema);
 

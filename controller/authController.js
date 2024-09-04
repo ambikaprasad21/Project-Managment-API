@@ -60,7 +60,6 @@ exports.sendOtpToUser = catchAsync(async (req, res, next) => {
 });
 
 exports.verifyOTPAndRegister = catchAsync(async (req, res, next) => {
-  // const otp = req.query.otp;
   const { code, user, verify } = req.query;
 
   const decoded = jwt.verify(verify, process.env.JWT_SECRET);
@@ -68,18 +67,12 @@ exports.verifyOTPAndRegister = catchAsync(async (req, res, next) => {
     return next(new AppError('user and verify did not match', 400));
   }
 
-  // const { firstName, lastName, email, password } =
-  //   req.body;
-
   if (!code) {
     return next(new AppError('Verification code is required', 400));
   }
 
-  // console.log(user, code);
   const { status, password } = await verifyOtpCode(user, code);
   if (status === 'approved') {
-    //  register new user
-    // (await currentUser).save();
     req.body = { email: user, password };
     next();
   } else {
@@ -95,7 +88,6 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   const user = await User.findOne({ email }).select('+password');
-  // .populate('notifications');
   if (!user) return next(new AppError('Entered Email Id is invlaid', 401));
 
   if (!(await user.correctPassword(password, user.password))) {
@@ -124,7 +116,6 @@ exports.protect = catchAsync(async (req, res, next) => {
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
   const currentUser = await User.findById(decoded.userId);
-  // console.log(currentUser);
 
   if (!currentUser) {
     return next(
@@ -162,7 +153,6 @@ exports.getLoggedInUser = async (req, res, next) => {
 };
 
 exports.logout = (req, res, next) => {
-  // req.headers.authorization = "";
   res.cookie('loginToken', null, {
     expires: new Date(Date.now()),
     httpOnly: true,
@@ -273,34 +263,6 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   user.passwordResetExpiresAt = undefined;
   await user.save();
 
-  //login the user
   const token = await createLoginToken(user._id);
   sendLoginTokenToCookie(res, token);
-});
-
-// ************* Send Hiring mail ************
-exports.sendHiringMail = catchAsync(async (req, res, next) => {
-  const { email, emname, stipend } = req.body;
-  console.log(email);
-  let taileredmail = hiringMail
-    .replace('emname', emname)
-    .replace('stipend', stipend);
-
-  const options = {
-    email,
-    subject:
-      '🔥Exciting Opportunity to Join Our Project Management Development Team',
-    html: taileredmail,
-  };
-
-  const status = 'success';
-  try {
-    await sendMail(options);
-  } catch (err) {
-    // console.log(err.message);
-    success: 'fail';
-  }
-  res.status(200).json({
-    status,
-  });
 });

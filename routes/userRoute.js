@@ -7,9 +7,6 @@ const router = express.Router();
 
 const upload = userController.upload;
 
-// ** send hiring mail **
-router.post('/hiring', authController.sendHiringMail);
-
 router.get('/monitor', userController.monitor);
 
 //register
@@ -53,5 +50,6 @@ router.patch('/updatePassword', userController.changePassword);
 router.patch('/visibility', userController.visibility);
 router.patch('/edit-bio', userController.bio);
 router.patch('/edit-skills', userController.skills);
+router.get('/get-dashboard', userController.getDashboardAnalytics);
 
 module.exports = router;

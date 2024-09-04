@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 const projectSchema = new mongoose.Schema(
   {
+    manager: mongoose.Types.ObjectId,
+    managerName: {
+      type: String,
+    },
     title: {
       type: String,
       required: [true, 'A project must have a title'],
@@ -11,11 +15,15 @@ const projectSchema = new mongoose.Schema(
       type: String,
       required: [true, 'A project must have description'],
     },
-    manager: mongoose.Types.ObjectId,
-    attachments: {
-      type: mongoose.Schema.ObjectId,
-      ref: 'Attachment',
+    deadline: {
+      type: Date,
+      required: [true, 'Project must have a deadline'],
     },
+    video: {
+      type: String,
+    },
+    images: [],
+    pdfs: [],
     trashed: {
       type: Boolean,
     },
@@ -30,26 +38,10 @@ const projectSchema = new mongoose.Schema(
   },
 );
 
-projectSchema.virtual('members', {
-  ref: 'TaskMember',
-  foreignField: 'projectId',
-  localField: '_id',
-});
-
 projectSchema.virtual('tasks', {
   ref: 'Task',
   foreignField: 'projectId',
   localField: '_id',
-});
-
-projectSchema.pre(/^find/, function (next) {
-  this.populate({ path: 'attachments', select: '-id' })
-    .populate({
-      path: 'members',
-      select: '-id',
-    })
-    .populate('tasks');
-  next();
 });
 
 const Project = mongoose.model('Project', projectSchema);

@@ -2,17 +2,14 @@ const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema(
   {
-    message: {
+    user: mongoose.Types.ObjectId,
+    text: {
       type: String,
       required: [true, 'notification must have message'],
     },
     seen: {
       type: Boolean,
       default: false,
-    },
-    user: {
-      type: mongoose.Types.ObjectId,
-      required: [true, 'A notification must have user Id'],
     },
   },
   {
