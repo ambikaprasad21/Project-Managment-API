@@ -230,3 +230,29 @@ exports.getAllTask = catchAsync(async (req, res, next) => {
     data: result[0],
   });
 });
+
+exports.toggleMarked = catchAsync(async (req, res, next) => {
+  const { taskId } = req.params;
+  const task = await Task.findById(taskId);
+  const userId = req.user._id;
+
+  if (!task) {
+    return next(new AppError('No task found.', 400));
+  }
+  const member = task.taskMembers.find(
+    (entry) => String(entry.member.user._id) === String(userId),
+  );
+
+  if (!member) {
+    return next(new AppError('You cannot perform this action.', 400));
+  }
+
+  member.marked = !member.marked;
+
+  await task.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: 'success',
+    data: task,
+  });
+});

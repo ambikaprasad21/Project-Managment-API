@@ -23,4 +23,6 @@ router.get('/:taskId', taskController.getTaskById);
 
 router.get('/:projectId/get-all-task', taskController.getAllTask);
 
+router.patch('/toggle-marked/:taskId', taskController.toggleMarked);
+
 module.exports = router;

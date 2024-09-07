@@ -1,9 +1,5 @@
 const express = require('express');
-
-const authController = require('./../controller/authController.js');
 const projectController = require('./../controller/projectController.js');
-const attachmentController = require('./../controller/attachmentController.js');
-const isLoginTokenPresent = require('../middleware/isLoginTokenPresent.js');
 const Project = require('./../models/projectModel');
 
 const router = express.Router();
@@ -27,21 +23,18 @@ router.patch(
 
 router.delete(
   '/delete/:projectId',
-  // isLoginTokenPresent,
   projectController.getProjectToTrashToDelete,
   projectController.deleteProject,
 );
 
 router.patch(
   '/totrash/:projectId',
-  // isLoginTokenPresent,
   projectController.getProjectToTrashToDelete,
   projectController.toTrash,
 );
 
 router.patch(
   '/outtrash/:projectId',
-  // isLoginTokenPresent,
   projectController.getProjectToTrashToDelete,
   projectController.outTrash,
 );
