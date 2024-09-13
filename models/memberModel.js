@@ -29,7 +29,7 @@ const memberSchema = new mongoose.Schema(
 memberSchema.pre(/^find/, function (next) {
   this.populate({
     path: 'user',
-    select: 'firstName lastName email photo',
+    select: 'firstName lastName email photo bio',
   });
   next();
 });

@@ -16,6 +16,7 @@ const memberRouter = require('./routes/memberRoute');
 const taskRouter = require('./routes/taskRoute');
 const commentRouter = require('./routes/commentRoute');
 const notificationRouter = require('./routes/notificationRoute');
+const messageRouter = require('./routes/messageRoute');
 
 const app = express();
 
@@ -69,6 +70,7 @@ app.use('/pm/api/v1/member', memberRouter);
 app.use('/pm/api/v1/task/', taskRouter);
 app.use('/pm/api/v1/comment/', commentRouter);
 app.use('/pm/api/v1/notification/', notificationRouter);
+app.use('/pm/api/v1/message', messageRouter);
 
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));

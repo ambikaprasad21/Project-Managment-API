@@ -13,10 +13,19 @@ router.post(
   projectController.transformProjectMedia(Task),
 );
 
+router.delete('/:taskId', taskController.deleteTask);
+
 router.patch(
   '/:id/add-asset',
   taskController.uploadTaskMedia,
   projectController.transformProjectMedia(Task),
+);
+
+router.patch('/update-task/:taskId', taskController.editTask);
+
+router.delete(
+  '/delete-task-asset/:modelId/:fileLocation',
+  projectController.removeAsset(Task),
 );
 
 router.get('/:taskId', taskController.getTaskById);

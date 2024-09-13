@@ -9,7 +9,7 @@ exports.addMember = catchAsync(async (req, res, next) => {
   const user = await User.findOne({ email: email });
 
   if (!user) {
-    return next(new AppError('There is no user with this email.', 400));
+    return next(new AppError(`There is no user with ${email} email.`, 400));
   }
 
   const member = await Member.create({

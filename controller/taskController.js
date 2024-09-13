@@ -3,6 +3,9 @@ const sharp = require('sharp');
 const fs = require('fs');
 const catchAsync = require('../utils/catchAsync');
 const Task = require('./../models/taskModel');
+const User = require('./../models/userModel');
+const Comment = require('./../models/commentModel');
+const Notification = require('../models/notificationModel');
 const AppError = require('./../utils/appError');
 const mongoose = require('mongoose');
 
@@ -131,6 +134,7 @@ exports.getAllTask = catchAsync(async (req, res, next) => {
           lastName: '$userDetails.lastName',
           email: '$userDetails.email',
           photo: '$userDetails.photo',
+          bio: '$userDetails.bio',
         },
       },
     },
@@ -154,10 +158,23 @@ exports.getAllTask = catchAsync(async (req, res, next) => {
       },
     },
     {
+      $lookup: {
+        from: 'comments',
+        localField: '_id',
+        foreignField: 'taskId',
+        as: 'comments',
+      },
+    },
+    {
+      $addFields: {
+        comments: { $size: '$comments' },
+      },
+    },
+    {
       $addFields: {
         progress: {
           $cond: {
-            if: { $eq: [{ $size: '$taskMembers' }, 0] }, // If no members
+            if: { $eq: [{ $size: '$taskMembers' }, 0] },
             then: 0,
             else: {
               $multiply: [
@@ -180,6 +197,11 @@ exports.getAllTask = catchAsync(async (req, res, next) => {
             },
           },
         },
+      },
+    },
+    {
+      $sort: {
+        _id: -1,
       },
     },
     {
@@ -219,7 +241,7 @@ exports.getAllTask = catchAsync(async (req, res, next) => {
   ]);
 
   if (result.length === 0) {
-    res.status(200).json({
+    return res.status(200).json({
       status: 'success',
       message: 'There are no tasks',
     });
@@ -254,5 +276,64 @@ exports.toggleMarked = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     data: task,
+  });
+});
+
+exports.deleteTask = catchAsync(async (req, res, next) => {
+  const { taskId } = req.params;
+  const task = await Task.findById(taskId);
+  if (!task) {
+    return next(new AppError('There is no task with this id', 401));
+  }
+
+  const taskMembers = task.taskMembers;
+  const uniqueUserIds = [
+    ...new Set(taskMembers.map((tm) => tm.member.user._id)),
+  ];
+
+  await Promise.all(
+    uniqueUserIds.map(async (userId) => {
+      const user = await User.findById(userId);
+      if (user) {
+        const notify = await Notification.create({
+          text: `❌ The task "${task.title}" was deleted by the manager.`,
+          user: userId,
+        });
+        await user.save({ validateBeforeSave: false });
+      }
+    }),
+  );
+
+  await Comment.deleteMany({ taskId });
+  await Task.findByIdAndDelete(taskId);
+
+  res.status(200).json({
+    status: 'success',
+  });
+});
+
+exports.editTask = catchAsync(async (req, res, next) => {
+  const { taskId } = req.params;
+
+  const { title, description, deadline, priority } = req.body;
+
+  const updatedFields = {};
+  if (title) updatedFields.title = title;
+  if (description) updatedFields.description = description;
+  if (deadline) updatedFields.daedline = deadline;
+  if (priority) updatedFields.priorityLevel = priority.value;
+
+  const updatedTask = await Task.findByIdAndUpdate(taskId, updatedFields, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!updatedTask) {
+    return next(new AppError('There is no task found.', 401));
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: updatedTask,
   });
 });

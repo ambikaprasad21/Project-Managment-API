@@ -22,10 +22,21 @@ const projectSchema = new mongoose.Schema(
     video: {
       type: String,
     },
-    images: [],
-    pdfs: [],
+    images: [
+      {
+        location: String,
+        name: String,
+      },
+    ],
+    pdfs: [
+      {
+        location: String,
+        name: String,
+      },
+    ],
     trashed: {
       type: Boolean,
+      default: false,
     },
   },
   {

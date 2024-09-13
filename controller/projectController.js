@@ -1,9 +1,11 @@
 const multer = require('multer');
 const sharp = require('sharp');
 const fs = require('fs');
+const path = require('path');
 const User = require('./../models/userModel');
 const catchAsync = require('./../utils/catchAsync');
 const Project = require('./../models/projectModel');
+const Task = require('./../models/taskModel');
 const Member = require('./../models/memberModel');
 const AppError = require('./../utils/appError');
 const Attachment = require('../models/attachmentModel');
@@ -51,11 +53,11 @@ const calculateTaskProgress = (task) => {
 
 exports.createProject = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user._id);
-  // if (user.projectsCreated.length >= user.numberOfProjectsAllowed) {
-  //   return next(
-  //     new AppError('To create more projects you need an upgrade', 400),
-  //   );
-  // }
+  if (user.projectsCreated.length >= user.numberOfProjectsAllowed) {
+    return next(
+      new AppError('To create more projects you need an upgrade', 400),
+    );
+  }
   const { title, description, deadline } = req.body;
   const managerName = `${user.firstName} ${user.lastName}`;
   const newProject = await Project.create({
@@ -74,6 +76,14 @@ exports.createProject = catchAsync(async (req, res, next) => {
 exports.transformProjectMedia = (model) => {
   return async (req, res, next) => {
     const id = req.body.id || req.params.id;
+    let modelName;
+    if (model === Task) {
+      modelName = 'task';
+    } else if (model === Project) {
+      modelName = 'project';
+    } else {
+      return next(new AppError('Invalid model type specified', 400));
+    }
     const project = await model.findById(id);
     if (!req.files) {
       res.status(200).json({
@@ -83,7 +93,7 @@ exports.transformProjectMedia = (model) => {
     }
     try {
       if (req.files.video) {
-        const filename = `project-video-${req.user._id}-${Date.now()}.mp4`;
+        const filename = `${modelName}-video-${req.user._id}-${Date.now()}.mp4`;
         fs.writeFile(
           `public/uploads/videos/${filename}`,
           req.files.video[0].buffer,
@@ -101,18 +111,23 @@ exports.transformProjectMedia = (model) => {
       // project images
       if (req.files.image) {
         const file = req.files.image[0];
-        const filename = `project-images-${req.user._id}-${Date.now()}.jpeg`;
+        const originalName = file.originalname;
+        const filename = `${modelName}-images-${req.user._id}-${Date.now()}.jpeg`;
         await sharp(file.buffer)
           .toFormat('jpeg')
           .jpeg({ quality: 90 })
           .toFile(`public/uploads/images/${filename}`);
 
-        project.images.unshift(filename);
+        project.images.unshift({
+          location: filename,
+          name: originalName,
+        });
       }
       // project pdfs
       if (req.files.pdf) {
         const file = req.files.pdf[0];
-        const filename = `project-pdfs-${req.user._id}-${Date.now()}.pdf`;
+        const originalName = file.originalname;
+        const filename = `${modelName}-pdfs-${req.user._id}-${Date.now()}.pdf`;
         fs.writeFile(`public/uploads/pdfs/${filename}`, file.buffer, (err) => {
           if (err) {
             throw new AppError(`can't uplaod file`);
@@ -121,7 +136,10 @@ exports.transformProjectMedia = (model) => {
           }
         });
 
-        project.pdfs.unshift(filename);
+        project.pdfs.unshift({
+          location: filename,
+          name: originalName,
+        });
       }
 
       await project.save({ validateBeforeSave: false });
@@ -169,6 +187,59 @@ exports.transformProjectMedia = (model) => {
   };
 };
 
+exports.removeAsset = (model) => {
+  return catchAsync(async (req, res, next) => {
+    const { modelId, fileLocation } = req.params;
+
+    let modelName;
+    if (model === Task) {
+      modelName = 'task';
+    } else if (model === Project) {
+      modelName = 'project';
+    } else {
+      return next(new AppError('Invalid model type specified', 400));
+    }
+
+    const doc = await model.findById(modelId);
+    if (!doc) {
+      return next(new AppError(`No ${model} found with that ID`, 404));
+    }
+
+    let fileArray, folderPath;
+    if (fileLocation.startsWith(`${modelName}-images`)) {
+      fileArray = doc.images;
+      folderPath = 'public/uploads/images';
+    } else if (fileLocation.startsWith(`${modelName}-pdfs`)) {
+      fileArray = doc.pdfs;
+      folderPath = 'public/uploads/pdfs';
+    } else {
+      return next(new AppError('Invalid file name', 400));
+    }
+    const fileIndex = fileArray.findIndex((file) =>
+      file.location.includes(fileLocation),
+    );
+    if (fileIndex === -1) {
+      return next(new AppError('File not found in the model', 404));
+    }
+    fileArray.splice(fileIndex, 1);
+    await doc.save({ validateBeforeSave: false });
+    const filePath = `${path.resolve(__dirname, `../${folderPath}`)}/${fileLocation}`;
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        return next(
+          new AppError('Error deleting the file from the server', 500),
+        );
+      }
+
+      // Only send the response after the file has been successfully deleted
+      res.status(200).json({
+        status: 'success',
+        message: 'File removed successfully',
+      });
+    });
+  });
+};
+
 exports.getProject = catchAsync(async (req, res, next) => {
   const { projectId } = req.params;
 
@@ -188,7 +259,10 @@ exports.getProject = catchAsync(async (req, res, next) => {
 
 exports.getAllProject = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
-  const projects = await Project.find({ manager: userId }).populate('tasks');
+  const projects = await Project.find({
+    manager: userId,
+    trashed: false,
+  }).populate('tasks');
 
   const projectWithProgress = projects.map((project) => {
     let totalTaskProgress = 0;
@@ -215,9 +289,43 @@ exports.getAllProject = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.getAllAssignedProjects = catchAsync(async (req, res, next) => {
+  const projectIdAssigned = req.user.projectIdAssigned;
+  const projects = await Project.find({
+    _id: { $in: projectIdAssigned },
+    trashed: false,
+  }).populate('tasks');
+
+  const projectWithProgress = projects.map((project) => {
+    let totalTaskProgress = 0;
+
+    project.tasks.forEach((task) => {
+      const taskProgress = calculateTaskProgress(task);
+      totalTaskProgress += taskProgress;
+    });
+
+    const projectProgress =
+      project.tasks.length > 0
+        ? (totalTaskProgress / project.tasks.length) * 100
+        : 0;
+    return {
+      ...project.toObject(),
+      progress: Math.round(projectProgress),
+    };
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: projectWithProgress,
+  });
+});
+
 exports.getProjectToTrashToDelete = catchAsync(async (req, res, next) => {
   let { projectId } = req.params;
-  const project = await Project.findById(projectId);
+  const project = await Project.findById(projectId).populate({
+    path: 'tasks',
+    select: 'this.taskMembers',
+  });
   if (!project) {
     return next(new AppError('This project does not exist', 401));
   }
@@ -234,7 +342,7 @@ exports.getProjectToTrashToDelete = catchAsync(async (req, res, next) => {
 exports.toTrash = catchAsync(async (req, res, next) => {
   const project = req.body.project;
   project.trashed = true;
-  await project.save();
+  await project.save({ validateBeforeSave: false });
   res.status(200).json({
     status: 'success',
     message: 'Moved project to trash',
@@ -244,32 +352,54 @@ exports.toTrash = catchAsync(async (req, res, next) => {
 exports.outTrash = catchAsync(async (req, res, next) => {
   const project = req.body.project;
   project.trashed = false;
-  await project.save();
+  await project.save({ validateBeforeSave: false });
   res.status(200).json({
     status: 'success',
     message: 'Moved out of trash',
   });
 });
 
+exports.getTrashedProjects = catchAsync(async (req, res, next) => {
+  const userId = req.user._id;
+  const projects = await Project.find({
+    manager: userId,
+    trashed: true,
+  }).select('title');
+  res.status(200).json({
+    status: 'success',
+    data: projects,
+  });
+});
+
 exports.deleteProject = catchAsync(async (req, res, next) => {
   const project = req.body.project;
 
-  await Attachment.findByIdAndDelete(project.attachments);
+  const allMembers = [];
 
+  project.tasks.forEach((task) => {
+    task.taskMembers.forEach((taskMember) => {
+      allMembers.push(taskMember.member.user._id);
+    });
+  });
+
+  const uniqueUserIds = [...new Set(allMembers)];
+
+  console.log(uniqueUserIds);
   await Promise.all(
-    project.members.map(async (member) => {
-      const user = await User.findById(member.user._id);
+    uniqueUserIds.map(async (userId) => {
+      const user = await User.findById(userId);
       user.projectIdAssigned = user.projectIdAssigned.filter(
         (el) => !el.equals(project._id),
       );
       const notify = await Notification.create({
-        message: `This ${project.title} ❌ was deleted by Manager`,
-        user: user._id,
+        text: `❌ This ${project.title} project was deleted by Manager`,
+        user: userId,
       });
-      // user.notifications.push(notify._id);
       await user.save({ validateBeforeSave: false });
     }),
   );
+
+  await Task.deleteMany({ projectId: project._id });
 
   await Project.findByIdAndDelete(project._id);
   req.user.projectsCreated = req.user.projectsCreated.filter(
@@ -277,9 +407,37 @@ exports.deleteProject = catchAsync(async (req, res, next) => {
   );
 
   await req.user.save({ validateBeforeSave: false });
-  res.status(204).json({
+  res.status(200).json({
     status: 'success',
     message: `deleted project ${project._id}`,
+  });
+});
+
+exports.updateProject = catchAsync(async (req, res, next) => {
+  const { projectId } = req.params;
+  const { title, description, deadline } = req.body;
+
+  const updatedFields = {};
+  if (title) updatedFields.title = title;
+  if (description) updatedFields.description = description;
+  if (deadline) updatedFields.deadline = deadline;
+
+  const updatedProject = await Project.findByIdAndUpdate(
+    projectId,
+    updatedFields,
+    {
+      new: true,
+      runValidators: true,
+    },
+  );
+
+  if (!updatedProject) {
+    return next(new AppError('No project found with that ID', 404));
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: updatedProject,
   });
 });
 

@@ -129,6 +129,12 @@ exports.protect = catchAsync(async (req, res, next) => {
     );
   }
 
+  // if (currentUser.email === 'test@gmail.com') {
+  //   return next(
+  //     new AppError('Demo account, no changes allowed due to security 😀', 401),
+  //   );
+  // }
+
   req.user = currentUser;
   next();
 });

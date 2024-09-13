@@ -7,6 +7,10 @@ const router = express.Router();
 router.get('/get/:projectId', projectController.getProject);
 
 router.get('/get-all-project', projectController.getAllProject);
+router.get(
+  '/get-all-assigned-project',
+  projectController.getAllAssignedProjects,
+);
 
 router.post(
   '/create/new',
@@ -22,10 +26,17 @@ router.patch(
 );
 
 router.delete(
+  '/delete-project-asset/:modelId/:fileLocation',
+  projectController.removeAsset(Project),
+);
+
+router.delete(
   '/delete/:projectId',
   projectController.getProjectToTrashToDelete,
   projectController.deleteProject,
 );
+
+router.get('/get-trashed-projects', projectController.getTrashedProjects);
 
 router.patch(
   '/totrash/:projectId',
@@ -38,6 +49,8 @@ router.patch(
   projectController.getProjectToTrashToDelete,
   projectController.outTrash,
 );
+
+router.patch('/update/:projectId', projectController.updateProject);
 
 router.get(
   '/get-project-analytics/:projectId',

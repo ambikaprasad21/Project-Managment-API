@@ -35,8 +35,18 @@ const taskSchema = new mongoose.Schema(
       },
       default: 'Low',
     },
-    pdfs: [],
-    images: [],
+    pdfs: [
+      {
+        location: String,
+        name: String,
+      },
+    ],
+    images: [
+      {
+        location: String,
+        name: String,
+      },
+    ],
   },
   {
     toJSON: {
