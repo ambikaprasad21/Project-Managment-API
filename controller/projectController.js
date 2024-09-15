@@ -113,15 +113,19 @@ exports.transformProjectMedia = (model) => {
         const file = req.files.image[0];
         const originalName = file.originalname;
         const filename = `${modelName}-images-${req.user._id}-${Date.now()}.jpeg`;
-        await sharp(file.buffer)
-          .toFormat('jpeg')
-          .jpeg({ quality: 90 })
-          .toFile(`public/uploads/images/${filename}`);
+        try {
+          await sharp(file.buffer)
+            .toFormat('jpeg')
+            .jpeg({ quality: 90 })
+            .toFile(`public/uploads/images/${filename}`);
 
-        project.images.unshift({
-          location: filename,
-          name: originalName,
-        });
+          project.images.unshift({
+            location: filename,
+            name: originalName,
+          });
+        } catch (err) {
+          return next(new AppError(err.message, 401));
+        }
       }
       // project pdfs
       if (req.files.pdf) {
