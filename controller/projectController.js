@@ -12,6 +12,9 @@ const Attachment = require('../models/attachmentModel');
 const Notification = require('../models/notificationModel');
 const mongoose = require('mongoose');
 
+const MAX_VIDEO_SIZE = 15 * 1024 * 1024;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
 const multerStorage = multer.memoryStorage();
 
 const multerFilter = (req, file, cb) => {
@@ -53,11 +56,11 @@ const calculateTaskProgress = (task) => {
 
 exports.createProject = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user._id);
-  // if (user.projectsCreated.length >= user.numberOfProjectsAllowed) {
-  //   return next(
-  //     new AppError('To create more projects you need an upgrade', 400),
-  //   );
-  // }
+  if (user.projectsCreated.length >= user.numberOfProjectsAllowed) {
+    return next(
+      new AppError('To create more projects you need an upgrade', 400),
+    );
+  }
   const { title, description, deadline } = req.body;
   const managerName = `${user.firstName} ${user.lastName}`;
   const newProject = await Project.create({
@@ -94,7 +97,11 @@ exports.transformProjectMedia = (model) => {
     try {
       if (req.files.video) {
         const filename = `${modelName}-video-${req.user._id}-${Date.now()}.mp4`;
-        fs.writeFile(
+        const videoFile = req.files.video[0];
+        if (videoFile.size > MAX_VIDEO_SIZE) {
+          return next(new AppError('Video size exceeds 15MB limit', 400));
+        }
+        await fs.writeFile(
           `public/uploads/videos/${filename}`,
           req.files.video[0].buffer,
           (err) => {
@@ -111,6 +118,9 @@ exports.transformProjectMedia = (model) => {
       // project images
       if (req.files.image) {
         const file = req.files.image[0];
+        if (file.size > MAX_FILE_SIZE) {
+          return next(new AppError('Image size exceeds 10MB limit', 400));
+        }
         const originalName = file.originalname;
         const filename = `${modelName}-images-${req.user._id}-${Date.now()}.jpeg`;
         try {
@@ -129,17 +139,23 @@ exports.transformProjectMedia = (model) => {
       }
       // project pdfs
       if (req.files.pdf) {
-        console.log(req.files.pdf);
         const file = req.files.pdf[0];
+        if (file.size > MAX_FILE_SIZE) {
+          return next(new AppError('PDF size exceeds 10MB limit', 400));
+        }
         const originalName = file.originalname;
         const filename = `${modelName}-pdfs-${req.user._id}-${Date.now()}.pdf`;
-        fs.writeFile(`public/uploads/pdfs/${filename}`, file.buffer, (err) => {
-          if (err) {
-            throw new AppError(`can't uplaod file`);
-          } else {
-            console.log('file uplaoded successfully pdf');
-          }
-        });
+        await fs.writeFile(
+          `public/uploads/pdfs/${filename}`,
+          file.buffer,
+          (err) => {
+            if (err) {
+              throw new AppError(`can't uplaod file`);
+            } else {
+              console.log('file uplaoded successfully pdf');
+            }
+          },
+        );
 
         project.pdfs.unshift({
           location: filename,

@@ -59,12 +59,6 @@ const taskSchema = new mongoose.Schema(
   },
 );
 
-// taskSchema.virtual('comments', {
-//   ref: 'Comment',
-//   foreignField: 'task',
-//   localField: '_id',
-// });
-
 taskSchema.pre(/^find/, function (next) {
   this.populate('taskMembers.member');
   next();
