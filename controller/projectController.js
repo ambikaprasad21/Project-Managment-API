@@ -53,11 +53,11 @@ const calculateTaskProgress = (task) => {
 
 exports.createProject = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user._id);
-  if (user.projectsCreated.length >= user.numberOfProjectsAllowed) {
-    return next(
-      new AppError('To create more projects you need an upgrade', 400),
-    );
-  }
+  // if (user.projectsCreated.length >= user.numberOfProjectsAllowed) {
+  //   return next(
+  //     new AppError('To create more projects you need an upgrade', 400),
+  //   );
+  // }
   const { title, description, deadline } = req.body;
   const managerName = `${user.firstName} ${user.lastName}`;
   const newProject = await Project.create({
@@ -125,6 +125,7 @@ exports.transformProjectMedia = (model) => {
       }
       // project pdfs
       if (req.files.pdf) {
+        console.log(req.files.pdf);
         const file = req.files.pdf[0];
         const originalName = file.originalname;
         const filename = `${modelName}-pdfs-${req.user._id}-${Date.now()}.pdf`;
