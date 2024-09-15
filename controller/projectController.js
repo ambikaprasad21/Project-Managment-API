@@ -150,27 +150,33 @@ exports.transformProjectMedia = (model) => {
       await project.save({ validateBeforeSave: false });
 
       if (req.body?.membersArray) {
-        const { projectId } = req.params;
-        const memberIds = req.body.membersArray;
-        const members = await Member.find({ _id: { $in: memberIds } });
-        const userIds = members.map((member) => member.user._id);
-        await User.updateMany(
-          { _id: { $in: userIds } },
-          { $addToSet: { projectIdAssigned: projectId } },
-        );
+        try {
+          const { projectId } = req.params;
+          const memberIds = req.body.membersArray;
+          const members = await Member.find({ _id: { $in: memberIds } });
+          const userIds = members.map((member) => member.user._id);
+          console.log(userIds);
+          await User.updateMany(
+            { _id: { $in: userIds } },
+            { $addToSet: { projectIdAssigned: projectId } },
+          );
 
-        const users = await User.find({ _id: { $in: userIds } }).select(
-          'firstName',
-        );
-        const projectTitle = await Project.findById(projectId).select('title');
+          const users = await User.find({ _id: { $in: userIds } }).select(
+            'firstName',
+          );
+          const projectTitle =
+            await Project.findById(projectId).select('title');
 
-        for (const user of users) {
-          const text = `Hey ${user.firstName}! 🎉 You've been handpicked for an exciting new project: "${projectTitle.title}". Time to showcase your skills! 🚀`;
+          for (const user of users) {
+            const text = `Hey ${user.firstName}! 🎉 You've been handpicked for an exciting new project: "${projectTitle.title}". Time to showcase your skills! 🚀`;
 
-          const notification = await Notification.create({
-            user: user._id,
-            text,
-          });
+            const notification = await Notification.create({
+              user: user._id,
+              text,
+            });
+          }
+        } catch (err) {
+          return next(new AppError(err.message, 401));
         }
       }
 
