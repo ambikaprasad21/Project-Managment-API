@@ -4,15 +4,28 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 const cloudinary = require('./../config/cloudinary');
+const crypto = require('crypto');
 const User = require('./../models/userModel');
 const Project = require('./../models/projectModel');
+const Payment = require('./../models/PaymentModel');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+
 const {
   createLoginToken,
   sendLoginTokenToCookie,
 } = require('../utils/cookies');
 const stripe = require('stripe')(process.env.STRIPE);
+
+const Razorpay = require('razorpay');
+
+const instance = new Razorpay({
+  key_id: process.env.RAZORPAY_API_KEY,
+  key_secret: process.env.RAZORPAY_SECRET_KEY,
+  headers: {
+    'X-Razorpay-Account': process.env.RAZORPAY_MERCHANT_ID,
+  },
+});
 
 const multerStorage = multer.memoryStorage();
 
@@ -136,36 +149,59 @@ exports.visibility = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.purchase = catchAsync(async (req, res, next) => {
-  const { type, logo } = req.body;
-  console.log(logo);
+exports.checkOut = catchAsync(async (req, res, next) => {
+  const { planType } = req.body;
 
-  const unitAmount = type === 'advanced' ? 3500 : 2000; // Amount in cents
-  const lineItems = [
-    {
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: type === 'advanced' ? 'Advanced Plan' : 'Basic Plan',
-        },
-        unit_amount: unitAmount,
-      },
-      quantity: 1,
-    },
-  ];
-
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    line_items: lineItems,
-    mode: 'payment',
-    success_url: process.env.FRONTEND_URL,
-    cancel_url: process.env.FRONTEND_URL,
-    customer_email: req.user.email,
-  });
+  const unitAmount = planType === 'advanced' ? 749 : 249;
+  const options = {
+    amount: unitAmount * 100,
+    currency: 'INR',
+  };
+  const order = await instance.orders.create(options);
 
   res.status(200).json({
-    id: session.id,
+    status: 'Success',
+    order,
   });
+});
+
+exports.paymentVerification = catchAsync(async (req, res, next) => {
+  const razorpay_order_id = req.body.data?.razorpay_order_id;
+  const razorpay_payment_id = req.body.data?.razorpay_payment_id;
+  const razorpay_signature = req.body.data?.razorpay_signature;
+
+  const body = razorpay_order_id + '|' + razorpay_payment_id;
+
+  const expectedSignature = crypto
+    .createHmac('sha256', process.env.RAZORPAY_SECRET_KEY)
+    .update(body.toString())
+    .digest('hex');
+
+  const isAuthentic = expectedSignature === razorpay_signature;
+
+  if (isAuthentic) {
+    const plantype = req.body.plantype;
+    const currUser = await User.findById(req.body.user.id);
+    currUser.numberOfProjectsAllowed += 2;
+    await currUser.save({ validateBeforeSave: false });
+
+    await Payment.create({
+      userId: req.body.user.id,
+      plantype,
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    });
+
+    res.status(200).json({
+      status: true,
+      redirectUrl: `${process.env.FRONTEND_URL}/payment/success?p_id=${razorpay_payment_id}&p_type=${plantype}`,
+    });
+  } else {
+    res.status(400).json({
+      success: false,
+    });
+  }
 });
 
 exports.monitor = catchAsync(async (req, res, next) => {

@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 
 exports.createOtpToken = async (otp, email) => {
   const token = jwt.sign({ otp: otp, email }, process.env.JWT_SECRET, {
-    expiresIn: '1m',
+    expiresIn: '5m',
   });
 
   return token;
